@@ -1,0 +1,27 @@
+{
+  "name": "qanunhub",
+  "version": "1.0.0",
+  "description": "",
+  "type": "module",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.117.2",
+    "dotenv": "^18.0.4",
+    "grammy": "^1.46.0",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.3",
+    "supabase": "^2.118.0"
+  }
+}
