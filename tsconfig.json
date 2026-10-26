@@ -10,9 +10,12 @@
     "outDir": "./dist",
     "rootDir": ".",
     "noEmit": true,
-    "types": ["node"]
+    "types": [
+      "node"
+    ]
   },
   "include": [
+    "api/**/*.ts",
     "bot/**/*.ts",
     "shared/**/*.ts"
   ],
