@@ -98,7 +98,7 @@ async function showGroupSubjects(ctx: Context, groupId: string) {
   const keyboard = new InlineKeyboard();
 
   if (ids.length) {
-    const { data: subjects, error: subjectError } = await supabase.from("subjects").select("id, name, code").in("id", ids).eq("is_active", true).order("name");
+    const { data: subjects, error: subjectError } = await supabase.from("subjects").select("id, name, code").in("id", ids).eq("semester_id", group.semester_id).eq("is_active", true).order("name");
     if (subjectError) throw subjectError;
     const { data: links, error: linksError } = await supabase.from("subject_lecturers").select("subject_id, lecturer_id").in("subject_id", (subjects ?? []).map((s) => s.id));
     if (linksError) throw linksError;
@@ -190,5 +190,14 @@ bot.callbackQuery(/^group:(.+)$/, async (ctx) => { await ctx.answerCallbackQuery
 bot.callbackQuery(/^subject:(.+)$/, async (ctx) => { await ctx.answerCallbackQuery(); await showSubjectFiles(ctx, ctx.match[1]); });
 bot.callbackQuery("nav:home", async (ctx) => { await ctx.answerCallbackQuery(); await showHome(ctx); });
 
-bot.catch((error) => console.error("Bot error:", error.error));
+bot.catch(async (error) => {
+  console.error("Bot error:", error.error);
+  const ctx = error.ctx;
+  if (!ctx.chat) return;
+  try {
+    await ctx.api.sendMessage(ctx.chat.id, "حدث خطأ مؤقت. حاول مجددًا بعد قليل.");
+  } catch (replyError) {
+    console.error("Could not send bot error message:", replyError);
+  }
+});
 export { bot };
