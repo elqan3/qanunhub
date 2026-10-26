@@ -96,9 +96,11 @@ async function showGroupSubjects(ctx: Context, groupId: string) {
   if (error) throw error;
   const ids = [...new Set((mappings ?? []).map((row) => row.subject_id))];
   const keyboard = new InlineKeyboard();
+  let subjectCount = 0;
 
   if (ids.length) {
     const { data: subjects, error: subjectError } = await supabase.from("subjects").select("id, name, code").in("id", ids).eq("semester_id", group.semester_id).eq("is_active", true).order("name");
+    subjectCount = subjects?.length ?? 0;
     if (subjectError) throw subjectError;
     const { data: links, error: linksError } = await supabase.from("subject_lecturers").select("subject_id, lecturer_id").in("subject_id", (subjects ?? []).map((s) => s.id));
     if (linksError) throw linksError;
@@ -120,7 +122,7 @@ async function showGroupSubjects(ctx: Context, groupId: string) {
 
   keyboard.text("🔙 رجوع", `year:${group.semester_id}`).row().text("🏠 الرئيسية", "nav:home");
   const groupName = group.name || `المجموعة ${group.number}`;
-  await ctx.editMessageText(ids.length ? `👥 ${groupName}\n\nاختر الأستاذ أو المادة:` : `👥 ${groupName}\n\nلا توجد مواد مرتبطة بهذه المجموعة بعد.`, { reply_markup: keyboard });
+  await ctx.editMessageText(subjectCount ? `👥 ${groupName}\n\nاختر الأستاذ أو المادة:` : `👥 ${groupName}\n\nلا توجد مواد مرتبطة بهذه المجموعة بعد.`, { reply_markup: keyboard });
 }
 
 async function deliverFile(ctx: Context, file: { id: string; title: string; description: string | null; telegram_file_id: string; file_type: string }) {
