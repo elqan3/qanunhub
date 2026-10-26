@@ -2,14 +2,22 @@
   "version": 2,
   "builds": [
     {
+      "src": "api/index.ts",
+      "use": "@vercel/node"
+    },
+    {
       "src": "api/telegram.ts",
       "use": "@vercel/node"
     }
   ],
   "routes": [
     {
-      "src": "/api/telegram",
+      "src": "^/api/telegram/?$",
       "dest": "/api/telegram.ts"
+    },
+    {
+      "src": "^/$",
+      "dest": "/api/index.ts"
     }
   ]
 }
