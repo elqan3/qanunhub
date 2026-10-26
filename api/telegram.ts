@@ -1,8 +1,12 @@
 import { webhookCallback } from "grammy";
+import type { IncomingMessage, ServerResponse } from "node:http";
 import { bot } from "../bot/app.js";
 
 const handleUpdate = webhookCallback(bot, "http");
 
-export default async function handler(req: Request): Promise<Response> {
-  return handleUpdate(req);
+export default function handler(
+  req: IncomingMessage,
+  res: ServerResponse,
+): Promise<void> {
+  return handleUpdate(req, res);
 }
