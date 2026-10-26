@@ -139,7 +139,6 @@ async function deliverFile(ctx: Context, file: { id: string; title: string; desc
     default:
       await ctx.api.sendDocument(ctx.chat.id, file.telegram_file_id, { caption });
   }
-  await supabase.from("files").update({ downloads: 0 }).eq("id", file.id).then(() => undefined);
 }
 
 async function showSubjectFiles(ctx: Context, subjectId: string) {
