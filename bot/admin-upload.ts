@@ -303,6 +303,10 @@ bot.use(async (ctx, next) => {
       await handleCallback(ctx, ctx.callbackQuery.data);
       return;
     }
+    if (ctx.callbackQuery?.data?.startsWith("delete:")) {
+      await handleDeleteCallback(ctx, ctx.callbackQuery.data);
+      return;
+    }
 
     const message = ctx.message;
     if (!message) return next();
@@ -310,6 +314,10 @@ bot.use(async (ctx, next) => {
     const command = message.text?.split(" ")[0]?.split("@")[0];
     if (command === "/addfile") {
       await start(ctx);
+      return;
+    }
+    if (command === "/deletefile") {
+      await startDelete(ctx);
       return;
     }
 
