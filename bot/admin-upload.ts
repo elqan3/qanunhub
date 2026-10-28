@@ -222,7 +222,7 @@ bot.use(async (ctx, next) => {
     const message = ctx.message;
     if (!message) return next();
 
-    const command = message.text?.split(/\\s+/)[0]?.split("@")[0];
+    const command = message.text?.split(" ")[0]?.split("@")[0];
     if (command === "/addfile") {
       await start(ctx);
       return;
