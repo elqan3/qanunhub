@@ -124,6 +124,91 @@ async function handleCallback(ctx: Context, data: string) {
   }
 }
 
+
+async function startDelete(ctx: Context) {
+  const { data, error } = await supabase.from("semesters").select("id, number, name").eq("is_active", true).order("number");
+  if (error) throw error;
+  const keyboard = new InlineKeyboard();
+  for (const year of data ?? []) keyboard.text(year.name || `السنة ${year.number}`, `delete:year:${year.id}`).row();
+  keyboard.text("إلغاء", "delete:cancel");
+  await ctx.reply(data?.length ? "🗑 حذف ملف دراسي\n\nاختر السنة الدراسية:" : "لا توجد سنوات دراسية نشطة.", { reply_markup: keyboard });
+}
+
+async function showDeleteGroups(ctx: Context, yearId: string) {
+  const { data: year, error: yearError } = await supabase.from("semesters").select("id, name").eq("id", yearId).eq("is_active", true).maybeSingle();
+  if (yearError) throw yearError;
+  if (!year) throw new Error("السنة الدراسية غير متاحة.");
+  const { data, error } = await supabase.from("student_groups").select("id, name, number").eq("semester_id", yearId).eq("is_active", true).order("number");
+  if (error) throw error;
+  const keyboard = new InlineKeyboard();
+  for (const group of data ?? []) keyboard.text(group.name || `المجموعة ${group.number}`, `delete:group:${group.id}`).row();
+  keyboard.text("🔙 رجوع", "delete:back:years").row().text("إلغاء", "delete:cancel");
+  await ctx.editMessageText(data?.length ? `اختر المجموعة في ${year.name}:` : "لا توجد مجموعات في هذه السنة.", { reply_markup: keyboard });
+}
+
+async function showDeleteSubjects(ctx: Context, groupId: string) {
+  const { data: group, error: groupError } = await supabase.from("student_groups").select("id, name, number, semester_id").eq("id", groupId).eq("is_active", true).maybeSingle();
+  if (groupError) throw groupError;
+  if (!group) throw new Error("المجموعة غير متاحة.");
+  const { data: mappings, error } = await supabase.from("subject_groups").select("subject_id").eq("group_id", groupId);
+  if (error) throw error;
+  const ids = [...new Set((mappings ?? []).map((row) => row.subject_id))];
+  const { data: subjects, error: subjectError } = ids.length
+    ? await supabase.from("subjects").select("id, name").in("id", ids).eq("semester_id", group.semester_id).eq("is_active", true).order("name")
+    : { data: [], error: null };
+  if (subjectError) throw subjectError;
+  const keyboard = new InlineKeyboard();
+  for (const subject of subjects ?? []) keyboard.text(subject.name.slice(0, 55), `delete:subject:${subject.id}`).row();
+  keyboard.text("🔙 رجوع", `delete:year:${group.semester_id}`).row().text("إلغاء", "delete:cancel");
+  await ctx.editMessageText(subjects?.length ? "اختر المادة التي تحتوي على الملف:" : "لا توجد مواد مرتبطة بهذه المجموعة.", { reply_markup: keyboard });
+}
+
+async function showDeleteFiles(ctx: Context, subjectId: string) {
+  const { data: subject, error: subjectError } = await supabase.from("subjects").select("id, name").eq("id", subjectId).eq("is_active", true).maybeSingle();
+  if (subjectError) throw subjectError;
+  if (!subject) throw new Error("المادة غير متاحة.");
+  const { data: files, error } = await supabase.from("files").select("id, title, created_at").eq("subject_id", subjectId).order("created_at", { ascending: false }).limit(40);
+  if (error) throw error;
+  const keyboard = new InlineKeyboard();
+  for (const file of files ?? []) keyboard.text(file.title.slice(0, 55), `delete:file:${file.id}`).row();
+  keyboard.text("🔙 رجوع", "delete:back:subjects").row().text("إلغاء", "delete:cancel");
+  await ctx.editMessageText(files?.length ? `📘 ${subject.name}\n\nاختر الملف المراد حذفه (آخر 40 ملفًا):` : `لا توجد ملفات مسجلة في مادة «${subject.name}».`, { reply_markup: keyboard });
+}
+
+async function handleDeleteCallback(ctx: Context, data: string) {
+  if (!ctx.from) return;
+  await ctx.answerCallbackQuery();
+  if (data === "delete:cancel") {
+    await ctx.editMessageText("تم إلغاء حذف الملف.");
+  } else if (data === "delete:back:years") {
+    await startDelete(ctx);
+  } else if (data === "delete:back:subjects") {
+    await ctx.editMessageText("ارجع واختر المادة مجددًا باستخدام /deletefile.");
+  } else if (data.startsWith("delete:year:")) {
+    await showDeleteGroups(ctx, data.slice("delete:year:".length));
+  } else if (data.startsWith("delete:group:")) {
+    await showDeleteSubjects(ctx, data.slice("delete:group:".length));
+  } else if (data.startsWith("delete:subject:")) {
+    await showDeleteFiles(ctx, data.slice("delete:subject:".length));
+  } else if (data.startsWith("delete:file:")) {
+    const fileId = data.slice("delete:file:".length);
+    const { data: file, error } = await supabase.from("files").select("id, title, subject_id").eq("id", fileId).maybeSingle();
+    if (error) throw error;
+    if (!file) throw new Error("الملف غير موجود أو حُذف بالفعل.");
+    const keyboard = new InlineKeyboard().text("🗑 نعم، احذف الملف", `delete:confirm:${file.id}`).row()
+      .text("إلغاء", "delete:cancel");
+    await ctx.editMessageText(`هل أنت متأكد من حذف هذا الملف؟\n\n«${file.title}»\n\nسيختفي من قائمة الطلاب. لا يمكن التراجع عن هذا الإجراء.`, { reply_markup: keyboard });
+  } else if (data.startsWith("delete:confirm:")) {
+    const fileId = data.slice("delete:confirm:".length);
+    const { data: file, error: readError } = await supabase.from("files").select("id, title").eq("id", fileId).maybeSingle();
+    if (readError) throw readError;
+    if (!file) throw new Error("الملف غير موجود أو حُذف بالفعل.");
+    const { error } = await supabase.from("files").delete().eq("id", fileId);
+    if (error) throw error;
+    await ctx.editMessageText(`تم حذف «${file.title}» من قاعدة البيانات، ولن يظهر للطلاب بعد الآن.\n\nلإدارة ملف آخر أرسل /deletefile.`);
+  }
+}
+
 async function handleAdminMessage(ctx: Context) {
   if (!ctx.from || !ctx.message) return;
   const message = ctx.message;
