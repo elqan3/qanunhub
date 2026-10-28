@@ -207,16 +207,44 @@ async function handleAdminMessage(ctx: Context) {
   await ctx.reply(`✅ تمت إضافة «${title}» بنجاح، وأصبح الملف متاحًا للطلاب.\n\nلإضافة ملف آخر أرسل /addfile.`);
 }
 
-// This middleware is registered before the student subscription gate in app.ts.
-// It consumes every update from allowlisted admins, so admin tools do not depend on channel membership.
+// Admins can use both the upload wizard and the regular student interface.
+// Only consume updates that belong to the upload flow; pass all other updates
+// to the student handlers registered later in app.ts.
 bot.use(async (ctx, next) => {
   if (!isAdmin(ctx)) return next();
+
   try {
     if (ctx.callbackQuery?.data?.startsWith("upload:")) {
       await handleCallback(ctx, ctx.callbackQuery.data);
       return;
     }
-    if (ctx.message) await handleAdminMessage(ctx);
+
+    const message = ctx.message;
+    if (!message) return next();
+
+    const command = message.text?.split(" ")[0]?.split("@")[0];
+    if (command === "/addfile") {
+      await start(ctx);
+      return;
+    }
+
+    // Keep /start available so admins can open the normal student menu.
+    if (command === "/start") return next();
+
+    const session = await getSession(ctx.from!.id);
+    if (command === "/cancel" && session) {
+      await clearSession(ctx.from!.id);
+      await ctx.reply("تم إلغاء العملية.");
+      return;
+    }
+
+    // Only route messages to the admin wizard while an upload session is active.
+    if (session) {
+      await handleAdminMessage(ctx);
+      return;
+    }
+
+    return next();
   } catch (error) {
     console.error("Admin upload flow failed:", error);
     const message = error instanceof Error ? error.message : "تعذّر إكمال العملية. حاول مجددًا.";
