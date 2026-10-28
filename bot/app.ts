@@ -1,5 +1,6 @@
 import { InlineKeyboard, type Context } from "grammy";
 import { bot } from "./config/telegram.js";
+import "./admin-upload.js";
 import { supabase } from "./config/supabase.js";
 import { upsertTelegramUser } from "./services/user.service.js";
 
